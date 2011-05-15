@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:amq="http://activemq.apache.org/schema/core"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:jms="http://www.springframework.org/schema/jms"
+       xmlns:jaxws="http://cxf.apache.org/jaxws"
+       xmlns:http-conf="http://cxf.apache.org/transports/http/configuration"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xmlns:p="http://www.springframework.org/schema/p"
+
+       xsi:schemaLocation="
+         http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+         http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
+         http://www.springframework.org/schema/jms http://www.springframework.org/schema/jms/spring-jms-3.0.xsd
+         http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.0.xsd
+         http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core.xsd
+         http://cxf.apache.org/jaxws http://cxf.apache.org/schemas/jaxws.xsd
+         http://cxf.apache.org/transports/http/configuration http://cxf.apache.org/schemas/configuration/http-conf.xsd
+       ">
+
+  <http-conf:conduit name="{http://bluesoft.com/ws/prefetch}PrefetchExperimentService.http-conduit">
+    <http-conf:client ConnectionTimeout="2000" ReceiveTimeout="2000"/>
+  </http-conf:conduit>
+
+  <jaxws:client id="PrefetchExperimentClientEndpointHttp"
+    address="http://localhost:9001/prefetch"
+    wsdlLocation="http://localhost:9001/prefetch?wsdl"
+    endpointName="tns:PrefetchExperiment"
+    serviceName="tns:PrefetchExperimentService"
+    serviceClass="com.bluesoft.ws.prefetch.PrefetchExperiment"
+    xmlns:tns="http://bluesoft.com/ws/prefetch"/>
+
+
+  <jaxws:client name="PrefetchExperimentClientEndpointJms"
+    address="jms://"
+    endpointName="tns:PrefetchExperiment"
+    serviceName="tns:PrefetchExperimentService"
+    serviceClass="com.bluesoft.ws.prefetch.PrefetchExperiment"
+    xmlns:tns="http://bluesoft.com/ws/prefetch">
+    <jaxws:features>
+      <bean class="org.apache.cxf.transport.jms.JMSConfigFeature">
+        <property name="jmsConfig">
+          <bean class="org.apache.cxf.transport.jms.JMSConfiguration">
+            <property name="connectionFactory" ref="connectionFactory" />
+            <property name="targetDestination" value="JMS/PREFETCH.EXPERIMENT.REQ" />
+            <property name="replyDestination" value="JMS/PREFETCH.EXPERIMENT.RSP" />
+            <property name="concurrentConsumers" value="10" />
+            <property name="maxConcurrentConsumers" value="20" />
+            <property name="recoveryInterval" value="5000" />
+            <property name="receiveTimeout" value="2000" />
+            <property name="timeToLive" value="5000" />
+            <property name="explicitQosEnabled" value="true" />
+            <property name="deliveryMode" value="1" />
+            <property name="useJms11" value="true" />
+          </bean>
+        </property>
+      </bean>
+      <!-- bean class="org.apache.cxf.feature.LoggingFeature"/ -->
+    </jaxws:features>
+  </jaxws:client>
+
+  <bean
+    id="connectionFactory"
+    class="org.springframework.jms.connection.CachingConnectionFactory"
+    scope="prototype" 
+    p:targetConnectionFactory-ref="amqConnectionFactory"
+    p:reconnectOnException="true"/>
+
+  <!-- JMS connection factory configuration  -->
+  <bean
+    id="amqConnectionFactory"
+    class="org.apache.activemq.ActiveMQConnectionFactory"
+    p:brokerURL="tcp://localhost:61616?jms.prefetchPolicy.all=0" />
+</beans>
