@@ -1,0 +1,16 @@
+==========================
+Prefetch Experiment Client
+==========================
+
+OVERVIEW
+
+This project contains a CXF client configuration for the Prefetch Experiment Server.
+
+This client & server were created for the purpose of exploring the affect of "prefetch"
+on SOAP over JMS infrastructures.  It was quickly discovered that a prefetch of 0 is
+prefered to mimimize the affects of processing latency on message distribution and to
+allow for more evenly distributed processing accross consumers.
+
+After that was determined, a decision was made to utilize the project to compare the 
+performance of HTTP and JMS SOAP Transports.
+
