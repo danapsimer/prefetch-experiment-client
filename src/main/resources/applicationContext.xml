@@ -19,7 +19,7 @@
          http://cxf.apache.org/transports/http/configuration http://cxf.apache.org/schemas/configuration/http-conf.xsd
        ">
 
-  <http-conf:conduit name="{http://bluesoft.com/ws/prefetch}PrefetchExperimentService.http-conduit">
+  <http-conf:conduit name="{http://bluesoft.com/ws/prefetch}PrefetchExperiment.http-conduit">
     <http-conf:client ConnectionTimeout="2000" ReceiveTimeout="2000"/>
   </http-conf:conduit>
 

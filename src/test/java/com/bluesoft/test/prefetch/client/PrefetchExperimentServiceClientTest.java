@@ -8,7 +8,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Random;
 import javax.annotation.Resource;
-import javax.xml.ws.soap.SOAPFaultException;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.testng.AbstractTestNGSpringContextTests;
 import org.testng.annotations.AfterSuite;
@@ -24,31 +23,33 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
 
   private static final org.slf4j.Logger sLogger = org.slf4j.LoggerFactory.getLogger(PrefetchExperimentServiceClientTest.class);
   private static final int INVOCATION_COUNT = 1000;
-  private static final int THREADS = 100;
+  private static final int THREADS = 20;
   private final Random random = new Random(System.currentTimeMillis());
 
   @Resource(name = "PrefetchExperimentClientEndpointJms")
   private PrefetchExperiment jmsService;
   private final List<Sample> jmsSamples = new ArrayList<Sample>(INVOCATION_COUNT);
   private int jmsSoapFaultCount = 0;
+  private long jmsTestStart = -1;
 
   @Resource(name = "PrefetchExperimentClientEndpointHttp")
   private PrefetchExperiment httpService;
   private final List<Sample> httpSamples = new ArrayList<Sample>(INVOCATION_COUNT);
   private int httpSoapFaultCount = 0;
+  private long httpTestStart = -1;
 
-  static class Sample {
+  public static class Sample {
 
-    private Date timestamp;
+    private long timestamp;
     private boolean successful;
     private Long requestTransportTime;
     private Long requestProcessingTime;
     private Long responseTransportTime;
     private long totalTime;
 
-    public Sample(PrefetchExperimentRequest request, PrefetchExperimentResponse response) {
+    public Sample(long testStart,PrefetchExperimentRequest request, PrefetchExperimentResponse response) {
       Date received = new Date();
-      timestamp = request.getSent();
+      timestamp = request.getSent().getTime() - testStart;
       successful = true;
       requestTransportTime = response.getRequestReceived().getTime() - request.getSent().getTime();
       requestProcessingTime = response.getSent().getTime() - response.getRequestReceived().getTime();
@@ -56,9 +57,9 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
       totalTime = received.getTime() - request.getSent().getTime();
     }
 
-    public Sample(PrefetchExperimentRequest request) {
+    public Sample(long testStart,PrefetchExperimentRequest request) {
       Date received = new Date();
-      timestamp = request.getSent();
+      timestamp = request.getSent().getTime() - testStart;
       totalTime = received.getTime() - request.getSent().getTime();
       successful = false;
       requestTransportTime = requestProcessingTime = responseTransportTime = null;
@@ -84,7 +85,7 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
       return successful;
     }
 
-    public Date getTimestamp() {
+    public long getTimestamp() {
       return timestamp;
     }
 
@@ -101,6 +102,13 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
 
   @Test(invocationCount = INVOCATION_COUNT, threadPoolSize = THREADS)
   public void testPing() {
+    if ( jmsTestStart == -1L ) {
+      synchronized(this) {
+        if ( jmsTestStart == -1L ) {
+          jmsTestStart = System.currentTimeMillis();
+        }
+      }
+    }
     PrefetchExperimentRequest request = new PrefetchExperimentRequest();
     request.setMessage("Sending Prefetch Message");
     request.setJunkPayload(randomString(100 + random.nextInt(100)));
@@ -110,14 +118,14 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
     try {
       response = jmsService.ping(request);
       assert response != null;
-      sample = new Sample(request, response);
+      sample = new Sample(jmsTestStart, request, response);
       assert response.getMessage().equals("Sending Prefetch Message");
 
-    } catch (SOAPFaultException ex) {
+    } catch (Exception ex) {
       synchronized (this) {
         jmsSoapFaultCount += 1;
       }
-      sample = new Sample(request);
+      sample = new Sample(jmsTestStart, request);
     }
     sLogger.info("sample = {}", sample);
     synchronized (jmsSamples) {
@@ -127,6 +135,13 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
 
   @Test(invocationCount = INVOCATION_COUNT, threadPoolSize = THREADS)
   public void testHttpPing() {
+    if ( httpTestStart == -1L ) {
+      synchronized(this) {
+        if ( httpTestStart == -1L ) {
+          httpTestStart = System.currentTimeMillis();
+        }
+      }
+    }
     PrefetchExperimentRequest request = new PrefetchExperimentRequest();
     request.setMessage("Sending Prefetch Message");
     request.setJunkPayload(randomString(100 + random.nextInt(100)));
@@ -136,15 +151,14 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
     try {
       response = httpService.ping(request);
       assert response != null;
-      sample = new Sample(request, response);
+      sample = new Sample(httpTestStart, request, response);
       assert response.getMessage().equals("Sending Prefetch Message");
-
-    } catch (SOAPFaultException ex) {
+    } catch (Exception ex) {
       sLogger.debug("SoapFault: ", ex);
       synchronized (this) {
         httpSoapFaultCount += 1;
       }
-      sample = new Sample(request);
+      sample = new Sample(httpTestStart, request);
     }
     sLogger.info("sample = {}", sample);
     synchronized (httpSamples) {
@@ -155,12 +169,12 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
   @AfterSuite
   public void printResults() {
     sLogger.info("JMS Results:");
-    printResults(jmsSamples,jmsSoapFaultCount);
+    printResultsToLog(jmsSamples,jmsSoapFaultCount);
     sLogger.info("HTTP Results:");
-    printResults(httpSamples,httpSoapFaultCount);
+    printResultsToLog(httpSamples,httpSoapFaultCount);
   }
 
-  public void printResults(List<Sample> samples,int soapFaultCount) {
+  private void printResultsToLog(List<Sample> samples,int soapFaultCount) {
     sLogger.info("---");
     sLogger.info("TIMESTAMP,SUCCESS,TOTAL,REQ_TRANSPORT,REQ_PROCESSING,RSP_TRANSPORT");
     for (Sample sample : samples) {
