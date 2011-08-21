@@ -45,13 +45,14 @@
             <property name="connectionFactory" ref="connectionFactory" />
             <property name="targetDestination" value="JMS/PREFETCH.EXPERIMENT.REQ" />
             <property name="replyDestination" value="JMS/PREFETCH.EXPERIMENT.RSP" />
-            <property name="concurrentConsumers" value="10" />
-            <property name="maxConcurrentConsumers" value="20" />
+            <property name="concurrentConsumers" value="5" />
+            <property name="maxConcurrentConsumers" value="50" />
             <property name="recoveryInterval" value="5000" />
             <property name="receiveTimeout" value="2000" />
             <property name="timeToLive" value="5000" />
             <property name="explicitQosEnabled" value="true" />
             <property name="deliveryMode" value="1" />
+            <property name="sessionTransacted" value="true" />
             <property name="useJms11" value="true" />
           </bean>
         </property>

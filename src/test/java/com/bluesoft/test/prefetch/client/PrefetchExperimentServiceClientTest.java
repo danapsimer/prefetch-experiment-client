@@ -3,6 +3,7 @@ package com.bluesoft.test.prefetch.client;
 import com.bluesoft.ws.prefetch.PrefetchExperiment;
 import com.bluesoft.ws.prefetch.PrefetchExperimentRequest;
 import com.bluesoft.ws.prefetch.PrefetchExperimentResponse;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -11,6 +12,7 @@ import javax.annotation.Resource;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.testng.AbstractTestNGSpringContextTests;
 import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -23,15 +25,13 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
 
   private static final org.slf4j.Logger sLogger = org.slf4j.LoggerFactory.getLogger(PrefetchExperimentServiceClientTest.class);
   private static final int INVOCATION_COUNT = 1000;
-  private static final int THREADS = 20;
+  private static final int THREADS = 40;
   private final Random random = new Random(System.currentTimeMillis());
-
   @Resource(name = "PrefetchExperimentClientEndpointJms")
   private PrefetchExperiment jmsService;
   private final List<Sample> jmsSamples = new ArrayList<Sample>(INVOCATION_COUNT);
   private int jmsSoapFaultCount = 0;
   private long jmsTestStart = -1;
-
   @Resource(name = "PrefetchExperimentClientEndpointHttp")
   private PrefetchExperiment httpService;
   private final List<Sample> httpSamples = new ArrayList<Sample>(INVOCATION_COUNT);
@@ -47,7 +47,7 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
     private Long responseTransportTime;
     private long totalTime;
 
-    public Sample(long testStart,PrefetchExperimentRequest request, PrefetchExperimentResponse response) {
+    public Sample(long testStart, PrefetchExperimentRequest request, PrefetchExperimentResponse response) {
       Date received = new Date();
       timestamp = request.getSent().getTime() - testStart;
       successful = true;
@@ -57,7 +57,7 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
       totalTime = received.getTime() - request.getSent().getTime();
     }
 
-    public Sample(long testStart,PrefetchExperimentRequest request) {
+    public Sample(long testStart, PrefetchExperimentRequest request) {
       Date received = new Date();
       timestamp = request.getSent().getTime() - testStart;
       totalTime = received.getTime() - request.getSent().getTime();
@@ -101,14 +101,23 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
   }
 
   @Test(invocationCount = INVOCATION_COUNT, threadPoolSize = THREADS)
-  public void testPing() {
-    if ( jmsTestStart == -1L ) {
-      synchronized(this) {
-        if ( jmsTestStart == -1L ) {
+  public void testPing() throws Exception {
+    if (jmsTestStart == -1L) {
+      synchronized (this) {
+        if (jmsTestStart == -1L) {
           jmsTestStart = System.currentTimeMillis();
         }
       }
     }
+
+
+    /*
+     * Sleep for a random amount of time between 0 and 500 milliseconds.  This
+     * will cause the test runs to be more randomly spaced.
+    Thread.sleep(random.nextInt(500));
+     */
+
+
     PrefetchExperimentRequest request = new PrefetchExperimentRequest();
     request.setMessage("Sending Prefetch Message");
     request.setJunkPayload(randomString(100 + random.nextInt(100)));
@@ -133,11 +142,11 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
     }
   }
 
-  @Test(invocationCount = INVOCATION_COUNT, threadPoolSize = THREADS)
+  @Test(enabled = false, invocationCount = INVOCATION_COUNT, threadPoolSize = THREADS)
   public void testHttpPing() {
-    if ( httpTestStart == -1L ) {
-      synchronized(this) {
-        if ( httpTestStart == -1L ) {
+    if (httpTestStart == -1L) {
+      synchronized (this) {
+        if (httpTestStart == -1L) {
           httpTestStart = System.currentTimeMillis();
         }
       }
@@ -169,12 +178,12 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
   @AfterSuite
   public void printResults() {
     sLogger.info("JMS Results:");
-    printResultsToLog(jmsSamples,jmsSoapFaultCount);
+    printResultsToLog(jmsSamples, jmsSoapFaultCount);
     sLogger.info("HTTP Results:");
-    printResultsToLog(httpSamples,httpSoapFaultCount);
+    printResultsToLog(httpSamples, httpSoapFaultCount);
   }
 
-  private void printResultsToLog(List<Sample> samples,int soapFaultCount) {
+  private void printResultsToLog(List<Sample> samples, int soapFaultCount) {
     sLogger.info("---");
     sLogger.info("TIMESTAMP,SUCCESS,TOTAL,REQ_TRANSPORT,REQ_PROCESSING,RSP_TRANSPORT");
     for (Sample sample : samples) {
@@ -194,5 +203,30 @@ public class PrefetchExperimentServiceClientTest extends AbstractTestNGSpringCon
       string.append((char) (32 + random.nextInt(95)));
     }
     return string.toString();
+  }
+
+  @Override
+  public void springTestContextAfterTestClass() throws Exception {
+    super.springTestContextAfterTestClass();
+  }
+
+  @Override
+  public void springTestContextAfterTestMethod(Method testMethod) throws Exception {
+    super.springTestContextAfterTestMethod(testMethod);
+  }
+
+  @Override
+  public void springTestContextBeforeTestClass() throws Exception {
+    super.springTestContextBeforeTestClass();
+  }
+
+  @Override
+  public void springTestContextBeforeTestMethod(Method testMethod) throws Exception {
+    super.springTestContextBeforeTestMethod(testMethod);
+  }
+
+  @Override
+  public void springTestContextPrepareTestInstance() throws Exception {
+    super.springTestContextPrepareTestInstance();
   }
 }
